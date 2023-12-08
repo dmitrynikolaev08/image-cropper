@@ -5,35 +5,40 @@ from PIL import Image, ImageTk
 import os
 
 
-def crop_object(image_path, output_path, background_margin=25, background_color=(255, 255, 255)):
+def crop_object(image_path, output_path, padding=25, background_color=(255, 255, 255)):
     # Open the image
     image = Image.open(image_path)
-    # Convert the image to grayscale for easier processing
-    gray_image = image.convert('L')
-    # Convert the image to a NumPy array
-    img_array = np.array(gray_image)
-    # Find non-zero (or non-white) pixels
-    non_zero_pixels = np.where(img_array < 255)  # Adjust this threshold if needed
+
+    # If the image has an alpha channel, we assume it is the mask
+    if image.mode == 'RGBA':
+        # Extract the alpha channel as a mask
+        mask = image.split()[3]
+        # Convert the mask to a NumPy array
+        mask_array = np.array(mask)
+        # Find where the mask is not transparent
+        object_pixels = np.where(mask_array > 0)
+    else:
+        # Convert the image to grayscale for easier processing
+        gray_image = image.convert('L')
+        # Convert the image to a NumPy array
+        img_array = np.array(gray_image)
+        # Find non-zero (or non-white) pixels
+        object_pixels = np.where(img_array < 255)  # Adjust this threshold if needed
+
     # Calculate the bounding box
-    y_coordinates, x_coordinates = non_zero_pixels
+    y_coordinates, x_coordinates = object_pixels
     top, bottom = np.min(y_coordinates), np.max(y_coordinates)
     left, right = np.min(x_coordinates), np.max(x_coordinates)
-    # Expand the bounding box to include background
-    top = max(0, top - background_margin)
-    left = max(0, left - background_margin)
-    bottom = min(img_array.shape[0], bottom + background_margin)
-    right = min(img_array.shape[1], right + background_margin)
-    # Crop the image
-    cropped_image = image.crop((left, top, right, bottom))
 
-    bg_image = Image.new('RGB', cropped_image.size, background_color)
+    # Calculate the size of the new image with padding
+    new_width = (right - left) + (2 * padding)
+    new_height = (bottom - top) + (2 * padding)
 
-    if cropped_image.mode == 'RGBA':
-        # Extract the alpha channel as a mask
-        mask = cropped_image.split()[3]
-        bg_image.paste(cropped_image.convert('RGB'), (0, 0), mask)
-    else:
-        bg_image.paste(cropped_image, (0, 0))
+    # Create a new image with the desired background color and size
+    bg_image = Image.new('RGB', (new_width, new_height), background_color)
+
+    # Paste the original image onto the new background, centered
+    bg_image.paste(image, (padding - left, padding - top), mask if image.mode == 'RGBA' else None)
 
     # Save the image with the new background
     bg_image.save(output_path)
