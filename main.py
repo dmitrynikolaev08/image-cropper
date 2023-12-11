@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import tkinter as tk
 from tkinter import filedialog
@@ -62,7 +64,10 @@ def process_images():
     if img_paths:
         for img_path in img_paths:
             file_name = os.path.basename(img_path)
-            output_path = file_name
+            # Directory of the executable
+            dir_name = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(
+                os.path.realpath(__file__))
+            output_path = os.path.join(dir_name, file_name)
             crop_object(img_path, output_path)
         result_label.config(text=f"Processed {len(img_paths)} images.")
 
